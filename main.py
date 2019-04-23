@@ -50,18 +50,23 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+print("Loading trainset")
 trainset = FashionAI('./', attribute=args.attribute, split=0.8, ci=args.ci, data_type='train', reset=False)
+print("Loading testset")
 testset = FashionAI('./', attribute=args.attribute, split=0.8, ci=args.ci, data_type='test', reset=trainset.reset)
+print("Creating train loader")
 train_loader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, **kwargs)
+print("Test loader")
 test_loader = torch.utils.data.DataLoader(testset, batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
 if args.ci:
     args.model = 'ci'
 
+print("Loading a model for training")
 model = m.create_model(args.model, FashionAI.AttrKey[args.attribute])
-
+print("Loading save folder")
 save_folder = os.path.join(os.path.expanduser('.'), 'save', args.attribute, args.model)
-
+print("Check point folder check")
 if os.path.exists(os.path.join(save_folder, args.model + '_checkpoint.pth')):
     start_epoch = torch.load(os.path.join(save_folder, args.model + '_checkpoint.pth'))
     model.load_state_dict(torch.load(os.path.join(save_folder, args.model + '_' + str(start_epoch) + '.pth')))
@@ -136,7 +141,7 @@ train_accuracy = []
 
 test_loss = []
 test_accuracy = []
-
+print("Starting training")
 for epoch in range(start_epoch + 1, args.epochs + 1):
     loss_acc = train(epoch)
     train_loss.append(copy.deepcopy(loss_acc.get('loss')))
