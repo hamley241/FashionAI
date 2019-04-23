@@ -131,7 +131,7 @@ def test():
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
     current_accuracy = 100. * correct / len(test_loader.dataset)
-    if best_accuracy > current_accuracy:
+    if best_accuracy < current_accuracy:
         print("Saving model current "+str(current_accuracy)+" "+"last best "+str(best_accuracy))
         best_accuracy = current_accuracy
         torch.save(model.state_dict(), os.path.join(save_folder, args.model + '_' + str(epoch) + '.pth'))
