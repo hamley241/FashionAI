@@ -102,22 +102,25 @@ def train(epoch):
 
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
-    torch.save(model.state_dict(), os.path.join(save_folder, args.model + '_' + str(epoch) + '.pth'))
-    torch.save(epoch, os.path.join(save_folder, args.model + '_checkpoint.pth'))
+    # torch.save(model.state_dict(), os.path.join(save_folder, args.model + '_' + str(epoch) + '.pth'))
+    # torch.save(epoch, os.path.join(save_folder, args.model + '_checkpoint.pth'))
     train_loss /= len(train_loader.dataset)
     print('Train set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
         train_loss, correct, len(train_loader.dataset),
         100. * correct / len(train_loader.dataset)))
     return {'loss': train_loss, 'accuracy': 100. *correct/ len(train_loader.dataset)}
 
+best_accuracy = 0
+
 def test():
+    global best_accuracy
     model.eval()
     test_loss = 0
     correct = 0
     for data, target in test_loader:
         if args.cuda:
             data, target = data.cuda(), target.cuda()
-        data, target = Variable(data, volatile=True), Variable(target)
+        data, target = data, target
         output = model(data)
         test_loss += F.nll_loss(output, target, size_average=False).item() # sum up batch loss
         pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
@@ -127,6 +130,12 @@ def test():
     print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
+    current_accuracy = 100. * correct / len(test_loader.dataset)
+    if best_accuracy > current_accuracy:
+        print("Saving model current "+str(current_accuracy)+" "+"last best "+str(best_accuracy))
+        best_accuracy = current_accuracy
+        torch.save(model.state_dict(), os.path.join(save_folder, args.model + '_' + str(epoch) + '.pth'))
+        torch.save(epoch, os.path.join(save_folder, args.model + '_checkpoint.pth'))
     return {'loss':test_loss, 'accuracy':100. *correct/ len(test_loader.dataset)}
 
 def save_fig(name_fig, tight_layout=True):
