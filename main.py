@@ -8,6 +8,15 @@ import model as m
 from torch.autograd import Variable
 from dataset import FashionAI
 
+import matplotlib
+import pickle
+import copy
+
+import matplotlib.pyplot as plt
+plt.rcParams['axes.labelsize'] = 14
+plt.rcParams['xtick.labelsize'] = 12
+plt.rcParams['ytick.labelsize'] = 12
+
 
 # Training settings
 parser = argparse.ArgumentParser(description='FashionAI')
@@ -67,6 +76,8 @@ optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
 def train(epoch):
     model.train()
+    correct = 0
+    train_loss = 0
     for batch_idx, (data, target) in enumerate(train_loader):
         if args.cuda:
             data, target = data.cuda(), target.cuda()
@@ -76,6 +87,9 @@ def train(epoch):
         loss = F.nll_loss(output, target)
         loss.backward()
         optimizer.step()
+        train_loss += F.nll_loss(output, target, size_average=False).item()  # sum up batch loss
+        pred = output.data.max(1, keepdim=True)[1]  # get the index of the max log-probability
+        correct += pred.eq(target.data.view_as(pred)).cpu().sum()
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
@@ -85,7 +99,11 @@ def train(epoch):
         os.makedirs(save_folder)
     torch.save(model.state_dict(), os.path.join(save_folder, args.model + '_' + str(epoch) + '.pth'))
     torch.save(epoch, os.path.join(save_folder, args.model + '_checkpoint.pth'))
-
+    train_loss /= len(train_loader.dataset)
+    print('Train set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
+        train_loss, correct, len(train_loader.dataset),
+        100. * correct / len(train_loader.dataset)))
+    return {'loss': train_loss, 'accuracy': 100. *correct/ len(train_loader.dataset)}
 
 def test():
     model.eval()
@@ -104,8 +122,29 @@ def test():
     print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
+    return {'loss':test_loss, 'accuracy':100. *correct/ len(test_loader.dataset)}
 
+def save_fig(name_fig, tight_layout=True):
+    path = os.path.join("./", "images", name_fig + ".png")
+    print("Saving figure", name_fig)
+    if tight_layout:
+        plt.tight_layout()
+    plt.savefig(path, format='png', dpi=300)
+
+train_loss = []
+train_accuracy = []
+
+test_loss = []
+test_accuracy = []
 
 for epoch in range(start_epoch + 1, args.epochs + 1):
-    train(epoch)
-    test()
+    loss_acc = train(epoch)
+    train_loss.append(copy.deepcopy(loss_acc.get('loss')))
+    train_accuracy.append(copy.deepcopy(loss_acc.get('accuracy')))
+    tloss_acc = test()
+    test_loss.append(copy.deepcopy(tloss_acc.get('loss')))
+    test_accuracy.append(copy.deepcopy(tloss_acc.get('accuracy')))
+train_loss_acc = {'acc':train_accuracy, 'loss':train_loss}
+test_loss_acc = {'acc':test_accuracy, 'loss':test_loss}
+pickle.dump(train_loss_acc, open("train_metrics.p","wb"))
+pickle.dump(test_loss_acc, open("test_metrics.p","wb"))
